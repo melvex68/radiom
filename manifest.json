@@ -1,7 +1,7 @@
 {
   "name": "Radio App Móvil",
   "short_name": "Radio",
-  "start_url": "/radio_app.html",
+  "start_url": "/radiom/radio_app.html",
   "display": "standalone",
   "background_color": "#1f2937",
   "theme_color": "#10b981",
@@ -18,4 +18,5 @@
       "type": "image/png"
     }
   ]
+
 }
