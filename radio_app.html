@@ -6,6 +6,8 @@
     <title>Radio Melvex App</title>
     <!-- Carga de Tailwind CSS para el diseño móvil y responsive -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- LIBRERÍA HLS.JS: Necesaria para reproducir streams avanzados como .m3u8 (HLS) -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <!-- Referencia al Manifiesto de la PWA -->
     <link rel="manifest" href="./manifest.json">
     <style>
@@ -61,7 +63,7 @@
 
     <div class="p-4 sm:p-6 max-w-lg mx-auto">
         <header class="text-center mb-8">
-            <h1 class="text-3xl font-extrabold text-teal-400">Radio Melvex</h1>
+            <h1 class="text-3xl font-extrabold text-teal-400">Radio Melvex App</h1>
             <p class="text-gray-400">Tu reproductor de streams favorito.</p>
         </header>
 
@@ -173,6 +175,9 @@
         const GENERIC_TEXT = [
             'stream online', 'radio live', 'playing now', 'loca fm', 'no title', 'loading'
         ];
+        
+        // Almacena la instancia de HLS para poder destruirla si cambiamos de estación
+        let hlsInstance = null; 
 
         // --- Lógica de Now Playing (Canción Actual) ---
 
@@ -284,14 +289,50 @@
                 updateInterval = null;
             }
             
+            // 1. Limpieza y manejo de HLS.js
+            if (hlsInstance) {
+                hlsInstance.destroy();
+                hlsInstance = null;
+            }
+            audio.src = ''; // Limpiamos el src nativo por seguridad
+            
             currentStation = station;
             currentStationDisplay.textContent = station.name;
-            audio.src = station.url;
             playPauseButton.disabled = false;
             
-            // Iniciar o reanudar reproducción
-            audio.load();
-            togglePlayPause(); // Usa togglePlayPause para manejar la promesa de play()
+            const streamUrl = station.url;
+            const isHLS = streamUrl.toLowerCase().includes('.m3u8') || streamUrl.toLowerCase().includes('.m3u');
+
+
+            if (Hls.isSupported() && isHLS) {
+                // Usar HLS.js para streams HLS/m3u8
+                hlsInstance = new Hls();
+                hlsInstance.attachMedia(audio);
+                hlsInstance.on(Hls.Events.MEDIA_ATTACHED, function () {
+                    hlsInstance.loadSource(streamUrl);
+                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
+                        togglePlayPause();
+                    });
+                });
+                hlsInstance.on(Hls.Events.ERROR, function (event, data) {
+                    console.error("HLS Error:", data.type, data.details);
+                    if (data.fatal) {
+                         alertMessage('Error HLS', 'El stream no se pudo cargar. Puede ser un problema de CORS o el enlace está roto.');
+                         updateUI(false);
+                    }
+                });
+
+            } else if (isHLS) {
+                // Fallback si HLS no está soportado (aunque casi siempre lo está)
+                alertMessage('Error', 'HLS.js no está soportado. Intentando con reproductor nativo...');
+                audio.src = streamUrl;
+                togglePlayPause();
+
+            } else {
+                // Usar reproductor nativo para MP3, AAC, etc.
+                audio.src = streamUrl;
+                togglePlayPause();
+            }
 
             // Si tiene API, iniciar la actualización de Now Playing
             if (station.api_id) {
@@ -361,11 +402,9 @@
          * @param {string} message - Contenido del mensaje.
          */
         function alertMessage(title, message) {
-            // Nota: Se recomienda una implementación de modal completa en un entorno de producción,
-            // pero para esta base simple, podemos usar la consola o un modal simple si se añade HTML extra.
+            // Implementación simple de un modal de mensaje en la consola
             console.warn(`${title}: ${message}`);
-            // Aquí puedes implementar la lógica para mostrar un modal con el título y mensaje
-            // Por simplicidad, se omite el código del modal HTML.
+            // NOTA: En una app real, aquí se mostraría un modal visible al usuario.
         }
 
         /**
@@ -439,9 +478,7 @@
                 const station = JSON.parse(lastStation);
                 currentStation = station;
                 currentStationDisplay.textContent = station.name;
-                audio.src = station.url;
-                playPauseButton.disabled = false;
-                renderStations(); // Resaltar la última estación
+                playStation(station); // Usar playStation para inicializar el reproductor HLS
             }
         }
         
@@ -460,4 +497,3 @@
     </script>
 </body>
 </html>
-
