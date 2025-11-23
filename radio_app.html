@@ -128,8 +128,17 @@
     </div>
 
     <audio id="audio-player"></audio>
+    
+    <!-- Footer con la hora de actualización -->
+    <footer class="mt-8 mb-4 p-4">
+        <p id="update-time-text" class="text-xs text-gray-500 text-center"></p>
+    </footer>
 
     <script>
+        // --- INFORMACIÓN DE LA ÚLTIMA VERSIÓN ---
+        // DEBES ACTUALIZAR ESTA VARIABLE CADA VEZ QUE HAGAS UN COMMIT IMPORTANTE.
+        const LAST_UPDATE_TIME = "23 Nov 2025, 20:42 UTC"; 
+
         // Definición de las emisoras con su URL de stream y su ID de API (si existe)
         const STATIONS = [
             // 1. Onda Cero (Primera)
@@ -173,7 +182,7 @@
         
         // Cadenas de texto genéricas que queremos ignorar
         const GENERIC_TEXT = [
-            'stream online', 'radio live', 'playing now', 'loca fm', 'no title', 'loading'
+            'stream online', 'radio live', 'playing now', 'loca fm', 'no title', 'loading', 'stream'
         ];
         
         // Almacena la instancia de HLS para poder destruirla si cambiamos de estación
@@ -201,6 +210,7 @@
 
                 for (let i = 0; i < maxRetries; i++) {
                     try {
+                        // Implementación básica de backoff exponencial
                         response = await fetch(apiUrl);
                         if (response.ok) break;
                     } catch (error) {
@@ -301,7 +311,8 @@
             playPauseButton.disabled = false;
             
             const streamUrl = station.url;
-            const isHLS = streamUrl.toLowerCase().includes('.m3u8') || streamUrl.toLowerCase().includes('.m3u');
+            // Usar una expresión más simple para detectar m3u/m3u8/pls
+            const isHLS = streamUrl.toLowerCase().includes('.m3u8') || streamUrl.toLowerCase().includes('.m3u') || streamUrl.toLowerCase().includes('.pls');
 
 
             if (Hls.isSupported() && isHLS) {
@@ -411,6 +422,9 @@
          * Inicializa la aplicación, carga la última configuración y registra eventos.
          */
         function initializeApp() {
+            // 0. Mostrar fecha de actualización
+            document.getElementById('update-time-text').textContent = `Última modificación del código: ${LAST_UPDATE_TIME}`;
+
             // 1. Inicializar Volumen
             const savedVolume = localStorage.getItem('audioVolume') || 70;
             volumeRange.value = savedVolume;
