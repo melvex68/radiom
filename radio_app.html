@@ -3,410 +3,418 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radio App Móvil</title>
-    <link rel="manifest" href="manifest.json">
+    <title>Radio Móvil App</title>
+    <!-- Carga de Tailwind CSS para el diseño móvil y responsive -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Referencia al Manifiesto de la PWA -->
+    <link rel="manifest" href="./manifest.json">
     <style>
-        /* Aplicar la fuente Inter y un fondo oscuro */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #1f2937; /* Gris oscuro */
-        }
-        /* Estilo para el contenedor principal centrado */
-        #app-container {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            padding: 1rem;
-        }
-        /* Estilo para el botón principal de play/pausa */
-        #playPauseButton {
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-        /* Estilo para los botones de emisoras */
-        .station-button {
-            transition: background-color 0.2s;
-        }
-        .station-button:hover {
-            background-color: #4b5563; /* Gris más claro en hover */
-        }
-        /* Estilo personalizado para el slider de volumen */
-        #volumeRange {
-            -webkit-appearance: none;
-            appearance: none;
+        /* Estilos personalizados para el slider de volumen (Track/Rail) */
+        input[type=range]::-webkit-slider-runnable-track {
+            background: #4b5563;
             height: 8px;
             border-radius: 4px;
-            background: #4b5563; /* Color de pista gris */
-            cursor: pointer;
-            width: 100%;
         }
-        /* Estilo para el 'pulgar' del slider en Chrome/Safari */
-        #volumeRange::-webkit-slider-thumb {
+        input[type=range]::-moz-range-track {
+            background: #4b5563;
+            height: 8px;
+            border-radius: 4px;
+        }
+        /* Estilos personalizados para el control deslizante (Thumb) */
+        input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #10b981; /* Color teal vibrante */
-            cursor: pointer;
-            box-shadow: 0 0 5px rgba(16, 185, 129, 0.7);
-        }
-        /* Estilo para el 'pulgar' del slider en Firefox */
-        #volumeRange::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             background: #10b981;
             cursor: pointer;
-            box-shadow: 0 0 5px rgba(16, 185, 129, 0.7);
+            margin-top: -4px; /* Centra el thumb con el track */
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
         }
-        /* Animación para el estado de carga/buffer */
-        @keyframes pulse-teal {
-            0%, 100% { background-color: #10b981; }
-            50% { background-color: #047857; }
-        }
-        .loading-dot {
-            width: 8px;
-            height: 8px;
+        input[type=range]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
-            background-color: #10b981;
-            margin: 0 4px;
-            animation: pulse-teal 1.5s infinite ease-in-out;
+            background: #10b981;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
         }
-        .loading-dot:nth-child(2) { animation-delay: 0.3s; }
-        .loading-dot:nth-child(3) { animation-delay: 0.6s; }
+
+        /* Estilo para el spin de carga */
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #10b981;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
-<body>
-    <div id="app-container" class="max-w-md mx-auto w-full">
+<body class="bg-gray-900 text-white min-h-screen font-sans">
 
-        <header class="text-center py-6">
-            <h1 class="text-4xl font-extrabold text-white">
-                Radio Móvil
-            </h1>
-            <p class="text-gray-400 mt-2">Tu música en cualquier lugar</p>
+    <div class="p-4 sm:p-6 max-w-lg mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-teal-400">Radio Móvil</h1>
+            <p class="text-gray-400">Tu reproductor de streams favorito.</p>
         </header>
 
-        <section class="bg-gray-800 p-6 rounded-xl shadow-2xl mb-8">
-            <h2 class="text-lg font-semibold text-teal-400 mb-2">Emisora Actual:</h2>
-            <div id="station-info" class="text-2xl font-bold text-white min-h-[3rem]">
-                Selecciona una emisora
+        <!-- Sección de Reproducción Actual -->
+        <div id="player-card" class="bg-gray-800 p-6 rounded-xl shadow-2xl mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="current-station" class="text-xl font-bold truncate">Selecciona una emisora</h2>
+                <div id="loading-indicator" class="loader hidden"></div>
             </div>
-            <div id="status-display" class="mt-2 min-h-[1.5rem]">
-                <p id="status-message" class="text-sm text-gray-400">Detenido.</p>
-                <div id="loading-indicator" class="flex justify-start items-center space-x-2 mt-1 hidden">
-                    <div class="loading-dot"></div>
-                    <div class="loading-dot"></div>
-                    <div class="loading-dot"></div>
-                    <span class="text-sm text-teal-400 font-semibold">Cargando...</span>
-                </div>
+            
+            <!-- Carátula y Nombre de Canción -->
+            <div class="flex flex-col items-center mb-6">
+                <img id="song-art" src="https://placehold.co/120x120/0f172a/94a3b8?text=NO+IMAGE" 
+                     alt="Carátula de la canción" 
+                     class="w-32 h-32 rounded-lg object-cover mb-4 shadow-lg">
+                <p id="song-text" class="text-center text-gray-300 text-sm italic">Información de la canción...</p>
             </div>
 
-            <div class="flex items-center space-x-3 mt-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M9.383 5.483A1 1 0 0110 6v8a1 1 0 01-1.617.75l-4-3.25H3a1 1 0 01-1-1V8a1 1 0 011-1h1.767l4-3.25a1 1 0 01.616-.267zM15.586 11H14a1 1 0 110-2h1.586l.707-.707a1 1 0 011.414 1.414l-1.414 1.414z" clip-rule="evenodd" />
+            <div class="flex justify-center mb-6">
+                <button id="play-pause-button" class="bg-teal-600 hover:bg-teal-500 text-white p-4 rounded-full shadow-lg transition duration-200 disabled:opacity-50" disabled>
+                    <!-- Icono de Play (predeterminado) -->
+                    <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <!-- Icono de Pausa (se muestra al reproducir) -->
+                    <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Control de Volumen -->
+            <div class="flex items-center space-x-3 text-gray-400">
+                <!-- Icono de Volumen -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.476 2.476a8 8 0 000-12.024m-4.502 4.502a2 2 0 010 2.828M15 12H9m0 0l2-2m-2 2l2 2" />
                 </svg>
-                <input type="range" id="volumeRange" min="0" max="100" value="70" class="flex-grow">
-                <span id="volume-display" class="text-white text-sm w-8 text-right">70%</span>
+                <input type="range" id="volumeRange" min="0" max="100" value="70" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                <span id="volume-display" class="w-10 text-right">70%</span>
             </div>
-        </section>
-
-        <div class="flex justify-center mb-10">
-            <button id="playPauseButton"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-5 px-12 rounded-full text-xl shadow-lg transform transition-all active:scale-95 flex items-center space-x-2">
-                <svg id="playIcon" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
-                <svg id="pauseIcon" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-                <span id="buttonText">Reproducir</span>
-            </button>
         </div>
-        
-        <section class="bg-gray-700 p-4 rounded-xl shadow-inner mb-6">
-            <h2 class="text-lg font-bold text-white mb-3">Añadir Stream Personalizado</h2>
-            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                <input type="url" id="customUrlInput" 
-                        placeholder="Pega aquí la URL (ej. http://stream.mp3)" 
-                        class="flex-grow p-3 rounded-lg bg-gray-600 text-white border border-gray-500 focus:ring-teal-500 focus:border-teal-500" 
-                        required>
+
+        <!-- Sección de Stream Personalizado -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8">
+            <h3 class="text-lg font-semibold mb-3 text-teal-400">Añadir Stream Personalizado</h3>
+            <div class="flex flex-col space-y-3">
+                <input type="text" id="customUrlInput" placeholder="Pega aquí la URL de stream (.mp3, .m3u8)" 
+                       class="w-full p-3 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:ring-teal-500 focus:border-teal-500 border-none">
                 <button id="loadCustomUrlButton" 
-                        class="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3 px-4 rounded-lg active:scale-95 transition">
+                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg shadow-md transition duration-200">
                     Cargar y Reproducir
                 </button>
             </div>
-        </section>
-        
-        <section class="flex-grow">
-            <h2 class="text-xl font-bold text-white mb-4">Emisoras Disponibles</h2>
-            <div id="station-list" class="space-y-3">
-            </div>
-        </section>
+        </div>
 
-        <audio id="radio-audio" class="hidden" preload="none"></audio>
+        <!-- Lista de Emisoras -->
+        <h2 class="text-2xl font-bold mb-4 text-teal-400">Emisoras Disponibles</h2>
+        <div id="stations-list" class="space-y-3">
+            <!-- Las emisoras se inyectan aquí por JavaScript -->
+        </div>
     </div>
 
+    <audio id="audio-player"></audio>
+
     <script>
-        // --- Constantes y Variables Globales ---
+        // Definición de las emisoras con su URL de stream y su ID de API (si existe)
         const STATIONS = [
-            // Emisoras añadidas por el usuario
-            { name: "Onda Cero España", url: "https://atres-live.ondacero.es/live/ondacero/bitrate_1.m3u8" },
-            { name: "LocaFM - House", url: "https://s2.we4stream.com/listen/loca_house/live" },
-            { name: "LocaFM - Mola", url: "https://s02.fjperezdj.com:8070/live" },
-            { name: "Beat Blender (Deep House)", url: "http://ice1.somafm.com/beatblender-128-mp3" },
-            { name: "Groove Salad (Chill Downtempo)", url: "http://ice1.somafm.com/groovesalad-128-mp3" },
-            { name: "DEF CON Radio (Música Hacking)", url: "http://ice1.somafm.com/defcon-128-mp3" },
-            { name: "Illinois Street Lounge (Exótica)", url: "http://ice1.somafm.com/illstreet-128-aac" }
+            // Onda Cero España usa un stream HLS (.m3u8)
+            { name: "Onda Cero España", url: "https://atres-live.ondacero.es/live/ondacero/bitrate_1.m3u8", api_id: null },
+            // Loca FM House usa la API Now Playing
+            { name: "LocaFM House", url: "https://s2.we4stream.com/listen/loca_house/live", api_id: "loca_house" },
+            // Loca FM Mola usa la API Now Playing
+            { name: "LocaFM Mola", url: "https://s02.fjperezdj.com:8070/live", api_id: "loca_mola" },
+            // Emisoras de SomaFM (ejemplos estables, sin API Now Playing conocida)
+            { name: "Beat Blender (SomaFM)", url: "http://ice1.somafm.com/beatblender-128-mp3", api_id: null },
+            { name: "Groove Salad (SomaFM)", url: "http://ice1.somafm.com/groovesalad-128-mp3", api_id: null },
+            { name: "DEF CON Radio (SomaFM)", url: "http://ice1.somafm.com/defcon-128-mp3", api_id: null },
+            { name: "Illinois Street Lounge (SomaFM)", url: "http://ice1.somafm.com/illstreet-128-aac", api_id: null },
         ];
 
         let currentStation = null;
-        let isPlaying = false;
-        
-        // Referencias al DOM
-        const audio = document.getElementById('radio-audio');
-        const stationListDiv = document.getElementById('station-list');
-        const playPauseButton = document.getElementById('playPauseButton');
-        const playIcon = document.getElementById('playIcon');
-        const pauseIcon = document.getElementById('pauseIcon');
-        const buttonText = document.getElementById('buttonText');
-        const stationInfo = document.getElementById('station-info');
-        const statusMessage = document.getElementById('status-message');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        
-        // Nuevas referencias para el control de volumen y URL personalizada
+        let updateInterval = null; // Variable para almacenar el ID del intervalo de actualización
+        const audio = document.getElementById('audio-player');
+        const playPauseButton = document.getElementById('play-pause-button');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const currentStationDisplay = document.getElementById('current-station');
         const volumeRange = document.getElementById('volumeRange');
         const volumeDisplay = document.getElementById('volume-display');
         const customUrlInput = document.getElementById('customUrlInput');
         const loadCustomUrlButton = document.getElementById('loadCustomUrlButton');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const songTextElement = document.getElementById('song-text');
+        const songArtElement = document.getElementById('song-art');
 
 
-        // --- Funciones de Utilidad y UI ---
-
-        /**
-         * Muestra u oculta el indicador de carga visual.
-         * @param {boolean} show - true para mostrar, false para ocultar.
-         */
-        function showLoading(show) {
-            if (show) {
-                loadingIndicator.classList.remove('hidden');
-                statusMessage.classList.add('hidden');
-            } else {
-                loadingIndicator.classList.add('hidden');
-                statusMessage.classList.remove('hidden');
-            }
-        }
+        // --- Lógica de Now Playing (Canción Actual) ---
 
         /**
-         * Actualiza el estado visual del botón principal y el mensaje.
-         * @param {boolean} playing - true si está reproduciendo, false si está detenido/pausado.
+         * Actualiza el nombre de la canción y la carátula usando la API de la emisora.
          */
-        function updateUI(playing) {
-            isPlaying = playing;
-            if (playing) {
-                playIcon.classList.add('hidden');
-                pauseIcon.classList.remove('hidden');
-                buttonText.textContent = 'Detener';
-                // Cambiar color a rojo cuando está sonando
-                playPauseButton.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
-                playPauseButton.classList.add('bg-red-600', 'hover:bg-red-700');
-                statusMessage.textContent = `Reproduciendo: ${currentStation.name}`;
-                showLoading(false);
-            } else {
-                pauseIcon.classList.add('hidden');
-                playIcon.classList.remove('hidden');
-                buttonText.textContent = 'Reproducir';
-                // Volver a color índigo cuando está detenido
-                playPauseButton.classList.remove('bg-red-600', 'hover:bg-red-700');
-                playPauseButton.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
-                statusMessage.textContent = currentStation ? `Detenido en ${currentStation.name}` : 'Selecciona una emisora';
-                showLoading(false);
-            }
-        }
-
-        /**
-         * Maneja la lógica de reproducción de una emisora específica.
-         * @param {object} station - El objeto de la emisora {name, url}.
-         */
-        async function playStation(station) {
-            // Detener la reproducción anterior si existe
-            audio.pause();
-
-            // Configurar la nueva emisora
-            currentStation = station;
-            stationInfo.textContent = currentStation.name;
-            audio.src = currentStation.url;
-            
-            showLoading(true);
-            statusMessage.textContent = ''; // Ocultar mensaje de estado mientras carga
-            
-            // Intentar reproducir (requiere interacción del usuario en la mayoría de los móviles)
-            try {
-                // El método .load() es importante para refrescar el stream
-                audio.load(); 
-                await audio.play();
-                // El evento 'playing' actualizará la UI a 'true'
-            } catch (error) {
-                // Manejar errores de permisos o de carga
-                console.error("Error al intentar reproducir:", error);
-                statusMessage.textContent = `Error: Debes hacer clic en Reproducir o la URL es incorrecta.`;
-                showLoading(false);
-                updateUI(false);
-            }
-        }
-
-        /**
-         * Alterna el estado de reproducción/pausa.
-         */
-        async function togglePlayPause() {
-            if (!currentStation) {
-                // Si no hay emisora seleccionada, reproducir la primera por defecto
-                playStation(STATIONS[0]);
+        async function updateNowPlaying() {
+            if (!currentStation || !currentStation.api_id) {
+                songTextElement.textContent = 'Información no disponible';
+                songArtElement.src = 'https://placehold.co/120x120/0f172a/94a3b8?text=NO+IMAGE';
                 return;
             }
 
-            if (isPlaying) {
-                // Si está reproduciendo, detener
-                audio.pause();
-                updateUI(false);
-            } else {
-                // Si está detenido, intentar reanudar
-                try {
-                    showLoading(true);
-                    await audio.play();
-                    // El evento 'playing' actualizará la UI a 'true'
-                } catch (error) {
-                    console.error("Error al reanudar la reproducción:", error);
-                    statusMessage.textContent = `Error al reanudar. Por favor, selecciona la emisora nuevamente.`;
-                    showLoading(false);
-                    updateUI(false);
+            try {
+                // Se asume que todas las APIs de LocaFM usan la misma base
+                const apiUrl = `https://s2.we4stream.com/api/nowplaying/${currentStation.api_id}`;
+                
+                // Implementación de Backoff para manejo de errores de red o throttling
+                const maxRetries = 3;
+                let response = null;
+
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        response = await fetch(apiUrl);
+                        if (response.ok) break;
+                    } catch (error) {
+                        // Espera exponencial antes de reintentar: 1s, 2s, 4s
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+                    }
                 }
+                
+                if (!response || !response.ok) {
+                    throw new Error("Respuesta de API no válida después de reintentos.");
+                }
+
+                const data = await response.json();
+                const song = data.now_playing.song;
+
+                // Texto tipo "Artista - Título"
+                songTextElement.textContent = song.text || (song.artist + ' - ' + song.title);
+                
+                // Carátula, si existe
+                if (song.art && song.art.startsWith('http')) {
+                    songArtElement.src = song.art;
+                } else {
+                    songArtElement.src = 'https://placehold.co/120x120/0f172a/94a3b8?text=NO+IMAGE';
+                }
+
+            } catch (err) {
+                console.error('Error al obtener now playing:', err);
+                songTextElement.textContent = 'Error al obtener la canción actual';
+                songArtElement.src = 'https://placehold.co/120x120/0f172a/94a3b8?text=NO+IMAGE';
             }
         }
 
+
+        // --- Lógica Principal del Reproductor ---
+
         /**
-         * Crea y añade los botones de las emisoras al DOM.
+         * Maneja la reproducción o pausa del audio.
          */
-        function renderStationButtons() {
-            stationListDiv.innerHTML = ''; // Limpiar la lista
+        function togglePlayPause() {
+            if (audio.paused) {
+                // Necesitamos el "user gesture" (clic del usuario) para iniciar la reproducción
+                // y evitar que el navegador lo bloquee.
+                audio.play().catch(error => {
+                    console.error("Error al intentar reproducir:", error);
+                    alertMessage('Error de reproducción', 'El navegador bloqueó la reproducción automática. Intenta de nuevo.');
+                    // Si falla, volvemos a pausado
+                    updateUI(false); 
+                });
+            } else {
+                audio.pause();
+            }
+            // La UI se actualizará automáticamente con los eventos 'play' y 'pause'
+        }
+
+        /**
+         * Reproduce una emisora específica.
+         * @param {Object} station - Objeto de la emisora (name, url, api_id)
+         */
+        function playStation(station) {
+            // Limpiar intervalo anterior de Now Playing
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+            
+            currentStation = station;
+            currentStationDisplay.textContent = station.name;
+            audio.src = station.url;
+            playPauseButton.disabled = false;
+            
+            // Iniciar o reanudar reproducción
+            audio.load();
+            togglePlayPause(); // Usa togglePlayPause para manejar la promesa de play()
+
+            // Si tiene API, iniciar la actualización de Now Playing
+            if (station.api_id) {
+                updateNowPlaying();
+                updateInterval = setInterval(updateNowPlaying, 15000); // Actualiza cada 15 segundos
+            } else {
+                songTextElement.textContent = 'Información no disponible';
+                songArtElement.src = 'https://placehold.co/120x120/0f172a/94a3b8?text=NO+IMAGE';
+            }
+
+            // Guardar la última estación seleccionada en localStorage
+            localStorage.setItem('lastStation', JSON.stringify(station));
+
+            // Actualizar la lista para resaltar la activa
+            renderStations();
+        }
+
+        /**
+         * Genera los botones de las emisoras en el HTML.
+         */
+        function renderStations() {
+            const list = document.getElementById('stations-list');
+            list.innerHTML = ''; // Limpiar la lista
+            
             STATIONS.forEach(station => {
+                const isActive = currentStation && currentStation.url === station.url;
                 const button = document.createElement('button');
                 button.textContent = station.name;
-                button.className = 'station-button w-full text-left p-4 bg-gray-700 text-white rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-4 focus:ring-teal-500/50';
-                
-                // Asignar el evento de clic para reproducir
-                button.addEventListener('click', () => {
-                    playStation(station);
-                });
-                
-                stationListDiv.appendChild(button);
+                button.className = `w-full text-left p-4 rounded-xl font-semibold shadow-md transition duration-200 
+                                     ${isActive ? 'bg-teal-600 hover:bg-teal-500' : 'bg-gray-700 hover:bg-gray-600'}`;
+                button.onclick = () => playStation(station);
+                list.appendChild(button);
             });
         }
-        
+
         /**
-         * Maneja el cambio del slider de volumen.
+         * Actualiza el estado visual de la UI (botones, iconos, indicador de carga).
+         * @param {boolean} isPlaying - Verdadero si el audio se está reproduciendo.
+         */
+        function updateUI(isPlaying) {
+            if (isPlaying) {
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            } else {
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Maneja el cambio de volumen.
          */
         function handleVolumeChange() {
-            // Convierte el valor del slider (0-100) a un valor de volumen de audio (0.0-1.0)
-            const volumeValue = volumeRange.value / 100;
-            audio.volume = volumeValue;
-            volumeDisplay.textContent = `${volumeRange.value}%`;
-            // Guardar la última configuración de volumen
-            localStorage.setItem('radioVolume', volumeRange.value);
+            const volumeValue = volumeRange.value;
+            const audioVolume = volumeValue / 100;
+            audio.volume = audioVolume;
+            volumeDisplay.textContent = `${volumeValue}%`;
+            // Guardar volumen en localStorage
+            localStorage.setItem('audioVolume', volumeValue);
         }
-        
+
         /**
-         * Maneja la carga y reproducción de una URL de stream personalizada.
+         * Muestra un mensaje modal en lugar de alert().
+         * @param {string} title - Título del mensaje.
+         * @param {string} message - Contenido del mensaje.
          */
-        function loadCustomUrl() {
-            const url = customUrlInput.value.trim();
-            if (!url) {
-                statusMessage.textContent = 'Por favor, introduce una URL válida.';
-                showLoading(false);
-                return;
-            }
-            
-            const customStation = { 
-                name: "Stream Personalizado", 
-                url: url 
-            };
-            
-            // Si la URL es la misma, solo hacemos toggle
-            if (currentStation && currentStation.url === url) {
-                togglePlayPause();
-            } else {
-                playStation(customStation);
-            }
+        function alertMessage(title, message) {
+            // Nota: Se recomienda una implementación de modal completa en un entorno de producción,
+            // pero para esta base simple, podemos usar la consola o un modal simple si se añade HTML extra.
+            console.warn(`${title}: ${message}`);
+            // Aquí puedes implementar la lógica para mostrar un modal con el título y mensaje
+            // Por simplicidad, se omite el código del modal HTML.
         }
 
-        // --- Manejo de Eventos de Audio (Retroalimentación al Usuario) ---
-        
-        // Manejo de errores de red o del decodificador
-        audio.addEventListener('error', (e) => {
-            console.error('Error de audio:', e);
-            showLoading(false);
-            let errorMsg = 'URL no válida, problema de CORS o red lenta.';
-            if (audio.networkState === audio.NETWORK_NO_SOURCE) {
-                errorMsg = 'No se encontró el stream (URL no válida).';
-            } else if (audio.networkState === audio.NETWORK_LOADING) {
-                 errorMsg = 'Error de conexión de red o timeout.';
-            }
-
-            statusMessage.textContent = `Error de conexión: ${errorMsg}`;
-            updateUI(false);
-        });
-
-        // Evento que indica que la reproducción ha comenzado
-        audio.addEventListener('playing', () => {
-            updateUI(true);
-        });
-        
-        // Evento que indica que la reproducción se ha detenido
-        audio.addEventListener('pause', () => {
-            updateUI(false);
-        });
-
-        // Evento para mostrar 'Bufferizando...'
-        audio.addEventListener('waiting', () => {
-            if (isPlaying) {
-                showLoading(true);
-                statusMessage.textContent = '';
-            }
-        });
-        
-        // --- Inicialización ---
-
+        /**
+         * Inicializa la aplicación, carga la última configuración y registra eventos.
+         */
         function initializeApp() {
-            // 1. Cargar el volumen guardado o establecer el predeterminado (70%)
-            const savedVolume = localStorage.getItem('radioVolume');
-            const initialVolume = savedVolume ? parseInt(savedVolume) : 70;
-            
-            volumeRange.value = initialVolume;
-            audio.volume = initialVolume / 100;
-            volumeDisplay.textContent = `${initialVolume}%`;
-            
-            // 2. Asignar eventos
-            playPauseButton.addEventListener('click', togglePlayPause);
+            // 1. Inicializar Volumen
+            const savedVolume = localStorage.getItem('audioVolume') || 70;
+            volumeRange.value = savedVolume;
+            handleVolumeChange(); // Aplica el volumen inicial
             volumeRange.addEventListener('input', handleVolumeChange);
-            loadCustomUrlButton.addEventListener('click', loadCustomUrl);
+
+            // 2. Inicializar Eventos del Reproductor
+            playPauseButton.addEventListener('click', togglePlayPause);
             
-            // Permitir cargar URL personalizada presionando Enter en el campo
+            // Eventos del Audio API
+            audio.addEventListener('play', () => updateUI(true));
+            audio.addEventListener('pause', () => updateUI(false));
+            audio.addEventListener('waiting', () => {
+                loadingIndicator.classList.remove('hidden');
+                songTextElement.textContent = 'Cargando stream...';
+            });
+            audio.addEventListener('stalled', () => {
+                loadingIndicator.classList.remove('hidden');
+                songTextElement.textContent = 'Conexión interrumpida, reintentando...';
+            });
+            audio.addEventListener('playing', () => {
+                loadingIndicator.classList.add('hidden');
+                // Al empezar a sonar, aseguramos que el texto de la canción se actualice
+                if (!currentStation.api_id) {
+                     songTextElement.textContent = 'Reproduciendo ' + currentStation.name;
+                }
+            });
+            audio.addEventListener('error', (e) => {
+                loadingIndicator.classList.add('hidden');
+                updateUI(false);
+                console.error("Error de Audio:", e);
+                alertMessage('Error Crítico', 'No se pudo reproducir el stream. El enlace puede estar roto o es incompatible.');
+            });
+
+
+            // 3. Inicializar Lista de Emisoras
+            renderStations();
+
+            // 4. Inicializar Stream Personalizado
+            loadCustomUrlButton.addEventListener('click', () => {
+                const customUrl = customUrlInput.value.trim();
+                if (customUrl) {
+                    const customStation = { 
+                        name: "Stream Personalizado", 
+                        url: customUrl, 
+                        api_id: null // No hay API de Now Playing para streams arbitrarios
+                    };
+                    playStation(customStation);
+                } else {
+                    alertMessage('URL Requerida', 'Por favor, introduce una URL de stream válida.');
+                }
+            });
             customUrlInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
-                    loadCustomUrl();
+                    loadCustomUrlButton.click();
                 }
             });
 
-            // 3. Renderizar botones de emisoras
-            renderStationButtons();
+            // 5. Cargar última estación (si existe)
+            const lastStation = localStorage.getItem('lastStation');
+            if (lastStation) {
+                const station = JSON.parse(lastStation);
+                currentStation = station;
+                currentStationDisplay.textContent = station.name;
+                audio.src = station.url;
+                playPauseButton.disabled = false;
+                renderStations(); // Resaltar la última estación
+            }
+        }
+        
+        // Ejecutar la inicialización al cargar la página
+        initializeApp();
 
-            // 4. REGISTRO DEL SERVICE WORKER (CRÍTICO PARA LA INSTALACIÓN DE PWA)
-            if ('serviceWorker' in navigator) {
+        // --- Registro del Service Worker (Fundamental para la PWA) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Registrar el service worker en el mismo directorio
                 navigator.serviceWorker.register('./service-worker.js')
                     .then(reg => console.log('Service Worker registrado con éxito:', reg.scope))
                     .catch(err => console.error('Error al registrar Service Worker:', err));
-            }
+            });
         }
-        
-        window.onload = initializeApp;
     </script>
 </body>
-
 </html>
