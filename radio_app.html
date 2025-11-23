@@ -61,7 +61,7 @@
 
     <div class="p-4 sm:p-6 max-w-lg mx-auto">
         <header class="text-center mb-8">
-            <h1 class="text-3xl font-extrabold text-teal-400">Radio Móvil</h1>
+            <h1 class="text-3xl font-extrabold text-teal-400">Radio Melvex App</h1>
             <p class="text-gray-400">Tu reproductor de streams favorito.</p>
         </header>
 
@@ -119,7 +119,7 @@
         </div>
 
         <!-- Lista de Emisoras -->
-        <h2 class="text-2xl font-bold mb-4 text-teal-400">Emisoras Disponibles</h2>
+        <h2 class="2xl font-bold mb-4 text-teal-400">Emisoras Disponibles</h2>
         <div id="stations-list" class="space-y-3">
             <!-- Las emisoras se inyectan aquí por JavaScript -->
         </div>
@@ -130,13 +130,21 @@
     <script>
         // Definición de las emisoras con su URL de stream y su ID de API (si existe)
         const STATIONS = [
-            // Onda Cero España usa un stream HLS (.m3u8)
+            // 1. Onda Cero (Primera)
             { name: "Onda Cero España", url: "https://atres-live.ondacero.es/live/ondacero/bitrate_1.m3u8", api_id: null },
-            // Loca FM House usa la API Now Playing
+            
+            // 2. Emisoras LocaFM (Agrupadas)
+            { name: "LocaFM Live", url: "https://go-audio.toya.net.pl/175", api_id: null },
+            { name: "LocaFM BigRoom", url: "https://s2.we4stream.com/listen/loca_big_room/live", api_id: "loca_big_room" },
             { name: "LocaFM House", url: "https://s2.we4stream.com/listen/loca_house/live", api_id: "loca_house" },
-            // Loca FM Mola usa la API Now Playing
             { name: "LocaFM Mola", url: "https://s02.fjperezdj.com:8070/live", api_id: "loca_mola" },
-            // Emisoras de SomaFM (ejemplos estables, sin API Now Playing conocida)
+
+            // 3. Resto de Emisoras
+            { name: "RockFM", url: "https://rockfm-cope-rrcast.flumotion.com/cope/rockfm.mp3", api_id: null },
+            { name: "Radio 5", url: "https://rtvelivestream.rtve.es/rtvesec/rne/rne_r5_madrid_main.m3u8", api_id: null },
+            { name: "Radio 3", url: "https://ztnr.rtve.es/ztnr/2795617.m3u8", api_id: null },
+            
+            // Ejemplos SomaFM
             { name: "Beat Blender (SomaFM)", url: "http://ice1.somafm.com/beatblender-128-mp3", api_id: null },
             { name: "Groove Salad (SomaFM)", url: "http://ice1.somafm.com/groovesalad-128-mp3", api_id: null },
             { name: "DEF CON Radio (SomaFM)", url: "http://ice1.somafm.com/defcon-128-mp3", api_id: null },
@@ -158,6 +166,13 @@
         const songTextElement = document.getElementById('song-text');
         const songArtElement = document.getElementById('song-art');
 
+        // URL de la imagen de reemplazo (placeholder)
+        const DEFAULT_ART_URL = 'https://placehold.co/120x120/0f172a/94a3b8?text=RADIO+STREAM';
+        
+        // Cadenas de texto genéricas que queremos ignorar
+        const GENERIC_TEXT = [
+            'stream online', 'radio live', 'playing now', 'loca fm', 'no title', 'loading'
+        ];
 
         // --- Lógica de Now Playing (Canción Actual) ---
 
@@ -166,8 +181,9 @@
          */
         async function updateNowPlaying() {
             if (!currentStation || !currentStation.api_id) {
-                songTextElement.textContent = 'Información no disponible';
-                songArtElement.src = 'https://placehold.co/120x120/0f172a/94a3b8?text=NO+IMAGE';
+                // Si la emisora no tiene API, muestra un mensaje limpio.
+                songTextElement.textContent = 'Información de la canción no disponible.';
+                songArtElement.src = DEFAULT_ART_URL;
                 return;
             }
 
@@ -175,7 +191,6 @@
                 // Se asume que todas las APIs de LocaFM usan la misma base
                 const apiUrl = `https://s2.we4stream.com/api/nowplaying/${currentStation.api_id}`;
                 
-                // Implementación de Backoff para manejo de errores de red o throttling
                 const maxRetries = 3;
                 let response = null;
 
@@ -184,7 +199,6 @@
                         response = await fetch(apiUrl);
                         if (response.ok) break;
                     } catch (error) {
-                        // Espera exponencial antes de reintentar: 1s, 2s, 4s
                         await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
                     }
                 }
@@ -195,21 +209,45 @@
 
                 const data = await response.json();
                 const song = data.now_playing.song;
-
-                // Texto tipo "Artista - Título"
-                songTextElement.textContent = song.text || (song.artist + ' - ' + song.title);
                 
-                // Carátula, si existe
-                if (song.art && song.art.startsWith('http')) {
-                    songArtElement.src = song.art;
-                } else {
-                    songArtElement.src = 'https://placehold.co/120x120/0f172a/94a3b8?text=NO+IMAGE';
+                // ----------------------------------------------------
+                // 1. Lógica de Limpieza y Fallback del Título (Texto)
+                // ----------------------------------------------------
+                let songText = song.text || (song.artist && song.title ? `${song.artist} - ${song.title}` : null);
+                
+                // Sanitización: Convertir a minúsculas para chequear texto genérico
+                if (songText) {
+                    const lowerText = songText.toLowerCase().trim();
+                    const isGeneric = GENERIC_TEXT.some(generic => lowerText.includes(generic));
+                    
+                    if (isGeneric || lowerText.length < 5) {
+                        songText = null; // Ignorar texto genérico o demasiado corto
+                    }
                 }
+
+                // Aplicar el resultado al elemento
+                if (songText) {
+                    songTextElement.textContent = songText;
+                } else {
+                    songTextElement.textContent = 'Actualmente sonando: Música...';
+                }
+                
+                // ----------------------------------------------------
+                // 2. Lógica de Limpieza y Fallback de la Carátula (Arte)
+                // ----------------------------------------------------
+                let artUrl = DEFAULT_ART_URL;
+                if (song.art && typeof song.art === 'string' && song.art.startsWith('http')) {
+                    // Solo usar la URL si es un string que parece ser una URL http(s)
+                    artUrl = song.art;
+                }
+
+                songArtElement.src = artUrl;
+
 
             } catch (err) {
                 console.error('Error al obtener now playing:', err);
-                songTextElement.textContent = 'Error al obtener la canción actual';
-                songArtElement.src = 'https://placehold.co/120x120/0f172a/94a3b8?text=NO+IMAGE';
+                songTextElement.textContent = 'Error de conexión con la información de la canción.';
+                songArtElement.src = DEFAULT_ART_URL;
             }
         }
 
@@ -260,8 +298,9 @@
                 updateNowPlaying();
                 updateInterval = setInterval(updateNowPlaying, 15000); // Actualiza cada 15 segundos
             } else {
+                // Si no hay API, usar fallback limpio
                 songTextElement.textContent = 'Información no disponible';
-                songArtElement.src = 'https://placehold.co/120x120/0f172a/94a3b8?text=NO+IMAGE';
+                songArtElement.src = DEFAULT_ART_URL;
             }
 
             // Guardar la última estación seleccionada en localStorage
@@ -358,6 +397,9 @@
                 // Al empezar a sonar, aseguramos que el texto de la canción se actualice
                 if (!currentStation.api_id) {
                      songTextElement.textContent = 'Reproduciendo ' + currentStation.name;
+                } else {
+                    // Si tiene API, hacemos una actualización inmediata al empezar a sonar
+                    updateNowPlaying(); 
                 }
             });
             audio.addEventListener('error', (e) => {
@@ -418,4 +460,3 @@
     </script>
 </body>
 </html>
-
